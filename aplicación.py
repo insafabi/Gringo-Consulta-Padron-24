@@ -102,18 +102,23 @@ def cargar_padron():
   if lista_df:
     df_consolidado = pd.concat(lista_df, ignore_index=True)
 
-    if "Nº de Documento" in df_consolidado.columns:
-      df_consolidado = df_consolidado.rename(
-          columns={"Nº de Documento": "cedula"}
-      )
-    elif "N° de Documento" in df_consolidado.columns:
-      df_consolidado = df_consolidado.rename(
-          columns={"N° de Documento": "cedula"}
-      )
+    # Mapeo flexible para detectar las columnas de tu Excel
+    columnas_renombrar = {
+        "Nº de Documento": "cedula",
+        "N° de Documento": "cedula",
+        "cédula": "cedula",
+        "Cedula": "cedula",
+        "CEDULA": "cedula",
+    }
+    df_consolidado = df_consolidado.rename(columns=columnas_renombrar)
 
     if "cedula" in df_consolidado.columns:
       df_consolidado["cedula_limpia"] = (
-          df_consolidado["cedula"].astype(str).str.replace(".", "").str.strip()
+          df_consolidado["cedula"]
+          .astype(str)
+          .str.replace(".0", "", regex=False)
+          .str.replace(".", "", regex=False)
+          .str.strip()
       )
       return df_consolidado
 
@@ -155,11 +160,22 @@ try:
     else:
       p = st.session_state.resultado_persona
 
-      nombre_completo = f"{p.get('NOMBRE', '')} {p.get('APELLIDO', '')}".strip()
-      desc_local = str(p.get("DESC_LOCAL", p.get("local", "")))
-      mesa = str(p.get("mesa", "-"))
-      orden = str(p.get("orden", "-"))
-      cedula_str = f"{int(p['cedula']):,}".replace(",", ".")
+      # Extracción segura de los campos de tu planilla
+      nombre_completo = f"{p.get('NOMBRE', p.get('nombre', ''))} {p.get('APELLIDO', p.get('apellido', ''))}".strip()
+      desc_local = str(
+          p.get("DESC_LOCAL", p.get("desc_local", p.get("local", "-")))
+      )
+      mesa = str(p.get("mesa", p.get("Mesa", "-")))
+      orden = str(p.get("order", p.get("orden", p.get("Orden", "-"))))
+
+      # Limpieza y formateo del número de cédula
+      try:
+        cedula_limpia_val = int(
+            float(str(p.get("cedula", "0")).replace(".", ""))
+        )
+        cedula_str = f"{cedula_limpia_val:,}".replace(",", ".")
+      except:
+        cedula_str = str(p.get("cedula", "-"))
 
       html_resultado = f"""<div style="background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); padding: 24px 20px; border-radius: 20px; box-shadow: 0px 15px 35px rgba(0, 0, 0, 0.4); margin-top: 15px; border: 1px solid rgba(255, 255, 255, 0.8);">
 <h3 style="color: #111; text-align: center; margin-top: 0; margin-bottom: 15px; font-size: 1.15rem; font-weight: 800;">Datos del elector</h3>
